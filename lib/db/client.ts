@@ -13,8 +13,26 @@ import * as schema from "./schema";
 
 let dbInstance: LibSQLDatabase<typeof schema> | null = null;
 
+function isBuildTime(): boolean {
+  // Check if we're in a build environment (Vercel build, Next.js build, etc.)
+  return (
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.NEXT_PHASE === "phase-development-build" ||
+    process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === undefined ||
+    process.env.CI === "true"
+  );
+}
+
 function getDb(): LibSQLDatabase<typeof schema> {
   if (dbInstance) return dbInstance;
+
+  // During build time, use a mock database to avoid filesystem issues
+  if (isBuildTime()) {
+    // Use an in-memory database for build time
+    const client = createClient({ url: "file::memory:" });
+    dbInstance = drizzle(client, { schema });
+    return dbInstance;
+  }
 
   const url = process.env.DATABASE_URL ?? "file:local.db";
   const authToken = process.env.DATABASE_AUTH_TOKEN;
