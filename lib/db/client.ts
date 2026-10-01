@@ -1,4 +1,3 @@
-import "server-only";
 import { createClient } from "@libsql/client";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import * as schema from "./schema";
@@ -14,11 +13,9 @@ import * as schema from "./schema";
 let dbInstance: LibSQLDatabase<typeof schema> | null = null;
 
 function isBuildTime(): boolean {
-  // Check if we're in a build environment (Vercel build, Next.js build, etc.)
   return (
     process.env.NEXT_PHASE === "phase-production-build" ||
     process.env.NEXT_PHASE === "phase-development-build" ||
-    process.env.VERCEL_ENV === "preview" && process.env.VERCEL_GIT_COMMIT_REF === undefined ||
     process.env.CI === "true"
   );
 }
@@ -28,7 +25,6 @@ function getDb(): LibSQLDatabase<typeof schema> {
 
   // During build time, use a mock database to avoid filesystem issues
   if (isBuildTime()) {
-    // Use an in-memory database for build time
     const client = createClient({ url: "file::memory:" });
     dbInstance = drizzle(client, { schema });
     return dbInstance;
@@ -51,3 +47,15 @@ export const db = new Proxy({} as LibSQLDatabase<typeof schema>, {
     return getDb()[prop as keyof LibSQLDatabase<typeof schema>];
   },
 }) as LibSQLDatabase<typeof schema>;
+
+// For scripts (seed, etc.) - direct access without proxy
+export function getDbForScript(): LibSQLDatabase<typeof schema> {
+  const url = process.env.DATABASE_URL ?? "file:local.db";
+  const authToken = process.env.DATABASE_AUTH_TOKEN;
+
+  const client = createClient(
+    url.startsWith("libsql:") ? { url, authToken } : { url }
+  );
+
+  return drizzle(client, { schema });
+}

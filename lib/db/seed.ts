@@ -6,7 +6,7 @@
  * quantas vezes for preciso durante o desenvolvimento.
  */
 import { randomUUID } from "crypto";
-import { db } from "./client";
+import { getDbForScript } from "./client";
 import { events, notes, reminders, subtasks, users } from "./schema";
 import { hash } from "bcryptjs";
 
@@ -17,6 +17,7 @@ function daysFromToday(offset: number) {
 }
 
 async function main() {
+  const db = getDbForScript();
   console.log("Limpando tabelas...");
   await db.delete(subtasks);
   await db.delete(reminders);
